@@ -47,7 +47,7 @@
 
 ```sql
 ALTER TABLE documents ENABLE ROW LEVEL SECURITY;
-CREATE POLICY tenant_isolation ON documents 
+CREATE POLICY tenant_isolation ON documents
   USING (tenant_id = current_setting('app.tenant_id')::UUID);
 ```
 
@@ -69,7 +69,7 @@ LLM이 신뢰할 수 없는 정보를 생성하지 않도록, 검색된 문서�
 **구현**: 버전 이력 추적 및 시점 복원
 
 ```sql
-ALTER TABLE documents 
+ALTER TABLE documents
     ADD COLUMN version INTEGER DEFAULT 1,
     ADD COLUMN is_latest BOOLEAN DEFAULT true,
     ADD COLUMN previous_version_id UUID,
@@ -98,12 +98,12 @@ async def query_stream(request: QueryRequest):
     async def generate():
         chunks = await retrieval_service.search(request.query)
         yield {"event": "retrieval", "data": {...}}
-        
+
         async for token in llm_service.generate_stream(prompt):
             yield {"event": "token", "data": {"content": token}}
-        
+
         yield {"event": "done", "data": {"cost": ..., "sources": ...}}
-    
+
     return EventSourceResponse(generate())
 ```
 
@@ -129,11 +129,11 @@ CREATE TABLE document_assets (
 class MultimodalProcessor:
     async def process_document(self, pdf_path: str):
         images = convert_from_path(pdf_path, dpi=300)
-        
+
         for page_num, image in enumerate(images, 1):
             # 텍스트 추출
             text = pytesseract.image_to_string(image)
-            
+
             # 테이블 감지
             tables = self.table_detector.extract_tables(image)
             for table in tables:
@@ -142,7 +142,7 @@ class MultimodalProcessor:
                     'structured_data': self.table_to_json(table),
                     'text_embedding': self.embed_text(table)
                 })
-            
+
             # 차트/이미지 감지
             figures = self.detect_figures(image)
             for fig in figures:
@@ -166,10 +166,10 @@ class HybridRetrievalService:
     async def search(self, query: str, alpha: float = 0.5):
         # 벡터 검색 (의미적 유사도)
         vector_results = await self.vector_search(query, top_k=20)
-        
+
         # BM25 검색 (키워드 매칭)
         bm25_results = await self.bm25_search(query, top_k=20)
-        
+
         # Reciprocal Rank Fusion
         return self.reciprocal_rank_fusion(
             vector_results, bm25_results, alpha=alpha
@@ -196,7 +196,7 @@ await save_query_log({
 })
 ```
 
-**효과**: 
+**효과**:
 - 테넌트별 사용량 집계 → 정확한 청구
 - 비싼 쿼리 식별 → 최적화 포인트 발견
 - 전체 실행 과정 재현 → 디버깅/감사
@@ -337,7 +337,7 @@ CREATE TABLE embeddings (
     UNIQUE(chunk_id)
 );
 
-CREATE INDEX embeddings_vector_idx ON embeddings 
+CREATE INDEX embeddings_vector_idx ON embeddings
     USING ivfflat (vector vector_cosine_ops) WITH (lists = 100);
 
 -- 멀티모달 자산
