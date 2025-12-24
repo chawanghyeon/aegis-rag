@@ -119,7 +119,7 @@ CREATE TABLE document_assets (
     asset_type VARCHAR(20),  -- 'image', 'table', 'chart'
     extracted_text TEXT,
     structured_data JSONB,
-    text_embedding vector(768),
+    text_embedding vector(1024),
     image_embedding vector(512)
 );
 ```
@@ -332,7 +332,7 @@ CREATE TABLE embeddings (
     id UUID PRIMARY KEY,
     tenant_id UUID REFERENCES tenants(id),
     chunk_id UUID REFERENCES chunks(id) ON DELETE CASCADE,
-    vector vector(768),
+    vector vector(1024),
     model_version VARCHAR(50) NOT NULL,
     UNIQUE(chunk_id)
 );
@@ -350,7 +350,7 @@ CREATE TABLE document_assets (
     extracted_text TEXT,
     structured_data JSONB,
     caption TEXT,
-    text_embedding vector(768),
+    text_embedding vector(1024),
     image_embedding vector(512),
     image_path VARCHAR(500),
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
@@ -516,6 +516,11 @@ aegis/
 │   │   ├── __init__.py
 │   │   ├── base.py                  # Processor Interface
 │   │   ├── pdf_parser.py            # PDF 파싱
+│   │   ├── hwp_parser.py            # HWP 파싱
+│   │   ├── csv_parser.py            # CSV 파싱
+│   │   ├── word_parser.py           # Word 파싱
+│   │   ├── excel_parser.py          # Excel 파싱
+│   │   ├── ppt_parser.py            # PPT 파싱
 │   │   ├── table_extractor.py       # 테이블 추출
 │   │   ├── image_captioner.py       # 이미지 캡셔닝
 │   │   └── processor_chain.py       # Chain of Responsibility Pattern
