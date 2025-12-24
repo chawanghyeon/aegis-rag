@@ -390,54 +390,240 @@ CREATE TABLE usage_records (
 CREATE INDEX usage_tenant_period_idx ON usage_records(tenant_id, period_start);
 ```
 
-### 모듈 구조
+### 모듈 구조 (레이어드 아키텍처)
 
 ```
 aegis/
-├── domain/                  # 비즈니스 로직
-│   ├── models/
-│   │   ├── tenant.py
-│   │   ├── document.py
-│   │   └── query.py
-│   ├── services/
-│   │   ├── document_service.py
-│   │   ├── embedding_service.py
-│   │   ├── retrieval_service.py
-│   │   ├── generation_service.py
-│   │   └── multimodal_service.py
-│   └── repositories/
-│       ├── tenant_repo.py
-│       ├── document_repo.py
-│       └── query_repo.py
+├── presentation/            # Presentation Layer (API, UI)
+│   ├── api/
+│   │   ├── routes/
+│   │   │   ├── __init__.py
+│   │   │   ├── documents.py      # 문서 업로드/조회 엔드포인트
+│   │   │   ├── query.py          # 쿼리 엔드포인트
+│   │   │   ├── usage.py          # 사용량 조회 엔드포인트
+│   │   │   └── admin.py          # 관리자 엔드포인트
+│   │   ├── middleware/
+│   │   │   ├── __init__.py
+│   │   │   ├── auth.py           # 인증 미들웨어 (Strategy Pattern)
+│   │   │   └── rate_limit.py     # Rate Limiting (Decorator Pattern)
+│   │   ├── dependencies.py       # FastAPI Dependency Injection
+│   │   ├── schemas.py            # Pydantic DTO (Data Transfer Objects)
+│   │   └── main.py               # FastAPI 앱 초기화
+│   └── cli/                      # CLI 인터페이스 (선택적)
+│       └── commands.py
 │
-├── infrastructure/          # 외부 의존성
-│   ├── database/
-│   │   ├── session.py
-│   │   └── models.py
-│   ├── embeddings/
-│   │   ├── sentence_transformer.py
-│   │   └── clip_encoder.py
-│   ├── llm/
-│   │   └── ollama_client.py
-│   └── processors/
-│       ├── pdf_parser.py
-│       ├── table_extractor.py
-│       └── image_captioner.py
+├── application/             # Application Layer (Use Cases)
+│   ├── use_cases/
+│   │   ├── __init__.py
+│   │   ├── upload_document.py    # 문서 업로드 유스케이스
+│   │   ├── process_document.py   # 문서 처리 유스케이스
+│   │   ├── query_documents.py    # 문서 쿼리 유스케이스
+│   │   ├── track_usage.py        # 사용량 추적 유스케이스
+│   │   └── manage_tenant.py      # 테넌트 관리 유스케이스
+│   ├── dto/                      # Data Transfer Objects
+│   │   ├── __init__.py
+│   │   ├── document_dto.py
+│   │   ├── query_dto.py
+│   │   └── usage_dto.py
+│   └── interfaces/               # Application Service Interfaces
+│       ├── __init__.py
+│       ├── embedding_interface.py
+│       ├── llm_interface.py
+│       └── storage_interface.py
 │
-├── api/                     # FastAPI
-│   ├── routes/
-│   │   ├── documents.py
-│   │   ├── query.py
-│   │   ├── usage.py
-│   │   └── admin.py
-│   ├── middleware/
-│   │   ├── auth.py
-│   │   └── rate_limit.py
-│   └── dependencies.py
+├── domain/                  # Domain Layer (Business Logic)
+│   ├── entities/            # Domain Entities (Pure Business Objects)
+│   │   ├── __init__.py
+│   │   ├── tenant.py            # Tenant 엔티티
+│   │   ├── document.py          # Document 엔티티 (버전 관리 로직)
+│   │   ├── chunk.py             # Chunk 엔티티
+│   │   ├── embedding.py         # Embedding 엔티티
+│   │   ├── document_asset.py    # DocumentAsset 엔티티
+│   │   ├── query.py             # Query 엔티티
+│   │   └── usage_record.py      # UsageRecord 엔티티
+│   ├── value_objects/       # Value Objects (Immutable)
+│   │   ├── __init__.py
+│   │   ├── api_key.py           # API Key Value Object
+│   │   ├── tenant_id.py         # TenantId Value Object
+│   │   ├── document_version.py  # DocumentVersion Value Object
+│   │   └── cost.py              # Cost Value Object
+│   ├── services/            # Domain Services (Business Logic)
+│   │   ├── __init__.py
+│   │   ├── document_version_service.py  # 버전 관리 로직
+│   │   ├── confidence_service.py        # 신뢰도 계산
+│   │   ├── cost_calculator.py           # 비용 계산
+│   │   └── text_chunker.py              # 텍스트 청킹 전략
+│   ├── repositories/        # Repository Interfaces (Abstract)
+│   │   ├── __init__.py
+│   │   ├── tenant_repository.py
+│   │   ├── document_repository.py
+│   │   ├── chunk_repository.py
+│   │   ├── embedding_repository.py
+│   │   ├── document_asset_repository.py
+│   │   ├── query_repository.py
+│   │   └── usage_record_repository.py
+│   ├── events/              # Domain Events (Event-Driven)
+│   │   ├── __init__.py
+│   │   ├── document_uploaded.py
+│   │   ├── document_processed.py
+│   │   └── query_executed.py
+│   └── exceptions/          # Domain Exceptions
+│       ├── __init__.py
+│       ├── document_exceptions.py
+│       ├── tenant_exceptions.py
+│       └── query_exceptions.py
 │
-└── workers/                 # Celery
-    ├── celery_app.py
-    └── tasks.py
+├── infrastructure/          # Infrastructure Layer (External Dependencies)
+│   ├── persistence/         # Database (Repository Pattern 구현)
+│   │   ├── sqlalchemy/
+│   │   │   ├── __init__.py
+│   │   │   ├── session.py           # DB Session Factory
+│   │   │   ├── models.py            # SQLAlchemy ORM Models
+│   │   │   ├── unit_of_work.py      # Unit of Work Pattern
+│   │   │   ├── repositories/        # Repository 구현체
+│   │   │   │   ├── __init__.py
+│   │   │   │   ├── tenant_repo_impl.py
+│   │   │   │   ├── document_repo_impl.py
+│   │   │   │   ├── chunk_repo_impl.py
+│   │   │   │   ├── embedding_repo_impl.py
+│   │   │   │   ├── document_asset_repo_impl.py
+│   │   │   │   ├── query_repo_impl.py
+│   │   │   │   └── usage_record_repo_impl.py
+│   │   │   └── migrations/          # Alembic
+│   │   │       └── versions/
+│   │   └── redis/
+│   │       ├── __init__.py
+│   │       └── cache.py             # Redis 캐시
+│   ├── embeddings/          # Embedding Services (Strategy Pattern)
+│   │   ├── __init__.py
+│   │   ├── base.py                  # Embedding Strategy Interface
+│   │   ├── sentence_transformer.py  # SentenceTransformer 구현
+│   │   ├── clip_encoder.py          # CLIP 구현
+│   │   └── factory.py               # Factory Pattern (임베딩 생성)
+│   ├── llm/                 # LLM Services (Strategy Pattern)
+│   │   ├── __init__.py
+│   │   ├── base.py                  # LLM Strategy Interface
+│   │   ├── ollama_client.py         # Ollama 구현
+│   │   └── factory.py               # Factory Pattern (LLM 생성)
+│   ├── retrieval/           # Retrieval Strategies (Strategy Pattern)
+│   │   ├── __init__.py
+│   │   ├── base.py                  # Retrieval Strategy Interface
+│   │   ├── vector_retrieval.py      # 벡터 검색
+│   │   ├── bm25_retrieval.py        # BM25 검색
+│   │   ├── hybrid_retrieval.py      # 하이브리드 검색
+│   │   └── factory.py               # Factory Pattern (검색 전략 생성)
+│   ├── processors/          # Document Processors (Chain of Responsibility)
+│   │   ├── __init__.py
+│   │   ├── base.py                  # Processor Interface
+│   │   ├── pdf_parser.py            # PDF 파싱
+│   │   ├── table_extractor.py       # 테이블 추출
+│   │   ├── image_captioner.py       # 이미지 캡셔닝
+│   │   └── processor_chain.py       # Chain of Responsibility Pattern
+│   ├── messaging/           # Message Queue
+│   │   ├── __init__.py
+│   │   ├── celery_app.py            # Celery 설정
+│   │   └── tasks.py                 # Celery Tasks
+│   └── monitoring/          # Logging & Monitoring
+│       ├── __init__.py
+│       ├── logger.py                # Structured Logging
+│       └── metrics.py               # Prometheus Metrics
+│
+└── shared/                  # Shared Kernel (공통 유틸리티)
+    ├── __init__.py
+    ├── config.py            # 설정 관리 (Singleton Pattern)
+    ├── constants.py         # 상수
+    ├── utils.py             # 유틸리티 함수
+    └── types.py             # 공통 타입 정의
+```
+
+### 적용된 디자인 패턴
+
+#### 1. Repository Pattern
+- **목적**: 데이터 접근 로직을 도메인 로직으로부터 분리
+- **위치**: `domain/repositories/` (인터페이스), `infrastructure/persistence/sqlalchemy/repositories/` (구현)
+- **효과**: DB 변경 시 도메인 레이어 영향 없음
+
+#### 2. Unit of Work Pattern
+- **목적**: 트랜잭션 경계 관리, 여러 Repository 작업을 하나의 트랜잭션으로 묶음
+- **위치**: `infrastructure/persistence/sqlalchemy/unit_of_work.py`
+- **효과**: 데이터 일관성 보장, 복잡한 트랜잭션 관리 단순화
+
+```python
+async with UnitOfWork() as uow:
+    document = await uow.documents.create(...)
+    chunks = await uow.chunks.create_batch(...)
+    await uow.commit()
+```
+
+#### 3. Strategy Pattern
+- **목적**: 알고리즘을 런타임에 교체 가능하도록
+- **적용 영역**:
+  - 임베딩 전략 (`infrastructure/embeddings/`)
+  - LLM 전략 (`infrastructure/llm/`)
+  - 검색 전략 (`infrastructure/retrieval/`)
+- **효과**: 새로운 임베딩 모델이나 LLM 추가가 용이
+
+```python
+# 임베딩 전략 교체
+embedding_service = EmbeddingFactory.create("sentence-transformer")
+embedding_service = EmbeddingFactory.create("clip")  # 런타임 변경
+```
+
+#### 4. Factory Pattern
+- **목적**: 객체 생성 로직 캡슐화
+- **위치**: 각 Strategy 디렉토리의 `factory.py`
+- **효과**: 의존성 주입 간소화, 객체 생성 로직 중앙화
+
+#### 5. Dependency Injection
+- **목적**: 의존성을 외부에서 주입하여 결합도 감소
+- **위치**: `presentation/api/dependencies.py`
+- **효과**: 테스트 용이, 모의 객체 주입 가능
+
+```python
+@router.post("/query")
+async def query(
+    request: QueryRequest,
+    retrieval_service: RetrievalService = Depends(get_retrieval_service),
+    generation_service: GenerationService = Depends(get_generation_service)
+):
+    ...
+```
+
+#### 6. Chain of Responsibility Pattern
+- **목적**: 요청을 여러 핸들러 체인으로 전달
+- **위치**: `infrastructure/processors/processor_chain.py`
+- **효과**: 문서 처리 파이프라인 유연하게 구성
+
+```python
+processor_chain = (
+    PDFParser()
+    .set_next(TableExtractor())
+    .set_next(ImageCaptioner())
+)
+result = await processor_chain.process(document)
+```
+
+#### 7. Value Object Pattern
+- **목적**: 불변 값 객체로 도메인 개념 표현
+- **위치**: `domain/value_objects/`
+- **효과**: 타입 안정성, 비즈니스 규칙 캡슐화
+
+```python
+api_key = ApiKey.generate()  # 자동 검증
+tenant_id = TenantId(uuid.uuid4())  # 불변
+```
+
+#### 8. Event-Driven Architecture
+- **목적**: 도메인 이벤트로 느슨한 결합
+- **위치**: `domain/events/`
+- **효과**: 시스템 확장성 향상, 감사 로깅 자동화
+
+```python
+await event_bus.publish(DocumentUploaded(
+    document_id=doc.id,
+    tenant_id=tenant.id,
+    timestamp=datetime.now()
+))
 ```
 
 ### API 엔드포인트
