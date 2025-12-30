@@ -1,4 +1,5 @@
 import uuid
+from dataclasses import FrozenInstanceError
 from uuid import UUID
 
 import pytest
@@ -27,5 +28,5 @@ def test_tenant_id_is_immutable():
     tenant_id = TenantId(uuid.uuid4())
 
     # When/Then: value 속성을 변경하려고 하면 에러가 발생한다
-    with pytest.raises(Exception()):  # FrozenInstanceError or AttributeError
+    with pytest.raises((FrozenInstanceError, AttributeError)):
         tenant_id.value = uuid.uuid4()  # type: ignore
