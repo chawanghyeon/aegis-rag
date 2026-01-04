@@ -208,3 +208,7 @@ __marimo__/
 
 # .vscode/
 .vscode/
+
+# md files except README.md
+*.md
+!README.md
