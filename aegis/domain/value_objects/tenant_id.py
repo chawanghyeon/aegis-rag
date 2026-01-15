@@ -12,3 +12,12 @@ class TenantId:
         """초기화 시 UUID 유효성 검사."""
         if not isinstance(self.value, UUID):
             raise TypeError(f"TenantId는 UUID여야 합니다. 받은 타입: {type(self.value)}")
+
+    def __str__(self) -> str:
+        return str(self.value)
+
+    @classmethod
+    def generate(cls) -> "TenantId":
+        from uuid import uuid4
+
+        return cls(uuid4())
